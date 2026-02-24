@@ -50,11 +50,12 @@ export type FormatEmbeddedCodeParam = {
 };
 
 /**
- * Format xxx-in-js code snippets
+ * Format xxx-in-js code snippets into formatted string.
+ *
+ * This will be gradually replaced by `formatEmbeddedDoc` which returns `Doc`.
+ * For now, html|css|md-in-js are using this.
  *
  * @returns Formatted code snippet
- * TODO: In the future, this should return `Doc` instead of string,
- * otherwise, we cannot calculate `printWidth` correctly.
  */
 export async function formatEmbeddedCode({
   code,
@@ -75,64 +76,55 @@ export async function formatEmbeddedCode({
 // ---
 
 export type FormatEmbeddedDocParam = {
-  code: string;
+  texts: string[];
   options: Options;
 };
 
 /**
- * Format xxx-in-js code snippets via Doc IR path.
+ * Format xxx-in-js code snippets into Prettier `Doc` JSON strings.
  *
- * Uses `prettier.__debug.printToDoc()` to get the unresolved Doc,
- * then serializes it to JSON for the Rust side to parse.
+ * This makes `oxc_formatter` correctly handle `printWidth` even for embedded code.
+ * - For gql-in-js, `texts` contains multiple parts split by `${}` in a template literal
+ * - For others, `texts` always contains a single string with `${}` parts replaced by placeholders
+ * However, this function does not need to be aware of that,
+ * as it simply formats each text part independently and returns an array of formatted parts.
  *
- * @returns Doc JSON string
+ * @returns Doc JSON strings (one per input text)
  */
 export async function formatEmbeddedDoc({
-  code,
+  texts,
   options,
-}: FormatEmbeddedDocParam): Promise<string> {
+}: FormatEmbeddedDocParam): Promise<string[]> {
   const prettier = await loadPrettier();
 
-  // Enable Tailwind CSS plugin for embedded code if needed
+  // Enable Tailwind CSS plugin for embedded code (e.g., html`...` in JS) if needed
   await setupTailwindPlugin(options);
 
-  // Get unresolved Doc from Prettier
-  const doc = await prettier.__debug.printToDoc(code, options);
+  // NOTE: This will throw if:
+  // - Specified parser is not available
+  // - Or, code has syntax errors
+  // In such cases, Rust side will fallback to original code
+  return Promise.all(
+    texts.map(async (text) => {
+      // @ts-expect-error: Use internal API, but it's necessary and only way to get `Doc`
+      const doc = await prettier.__debug.printToDoc(text, options);
 
-  // Replace Symbol group IDs with numeric counters before JSON serialization
-  const symbolToNumber = new Map<symbol, number>();
-  let nextId = 1;
+      // Serialize Doc to JSON, handling special values in a single pass:
+      // - Symbol group IDs (used by `group`, `if-break`, `indent-if-break`) → numeric counters
+      // - -Infinity (used by `dedentToRoot` via `align`) → marker string
+      const symbolToNumber = new Map<symbol, number>();
+      let nextId = 1;
 
-  const { utils } = await import("prettier/doc");
-  utils.traverseDoc(doc, (docNode: any) => {
-    // Replace group id (Symbol → number)
-    if (docNode.type === "group" && typeof docNode.id === "symbol") {
-      if (!symbolToNumber.has(docNode.id)) {
-        symbolToNumber.set(docNode.id, nextId++);
-      }
-      docNode.id = symbolToNumber.get(docNode.id);
-    }
-    // Replace if-break groupId
-    if (docNode.type === "if-break" && typeof docNode.groupId === "symbol") {
-      if (!symbolToNumber.has(docNode.groupId)) {
-        symbolToNumber.set(docNode.groupId, nextId++);
-      }
-      docNode.groupId = symbolToNumber.get(docNode.groupId);
-    }
-    // Replace indent-if-break groupId
-    if (docNode.type === "indent-if-break" && typeof docNode.groupId === "symbol") {
-      if (!symbolToNumber.has(docNode.groupId)) {
-        symbolToNumber.set(docNode.groupId, nextId++);
-      }
-      docNode.groupId = symbolToNumber.get(docNode.groupId);
-    }
-  });
-
-  // Serialize with -Infinity replacer
-  return JSON.stringify(doc, (_key, value) => {
-    if (value === -Infinity) return "__NEGATIVE_INFINITY__";
-    return value;
-  });
+      return JSON.stringify(doc, (_key, value) => {
+        if (typeof value === "symbol") {
+          if (!symbolToNumber.has(value)) symbolToNumber.set(value, nextId++);
+          return symbolToNumber.get(value);
+        }
+        if (value === -Infinity) return "__NEGATIVE_INFINITY__";
+        return value;
+      });
+    }),
+  );
 }
 
 // ---
