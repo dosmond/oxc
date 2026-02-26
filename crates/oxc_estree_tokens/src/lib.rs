@@ -267,7 +267,8 @@ impl<'b, S: SequenceSerializer> EstreeTokenContext<'b, S> {
         // Use `name` from AST node in most cases — it's JSON-safe so can skip escape checking.
         // Only fall back to raw source text when the token contains escapes and decoding is disabled,
         // since raw escape sequences contain `\` which needs JSON escaping.
-        if self.options.decode_identifier_escapes || !token.escaped() {
+        #[expect(clippy::overly_complex_bool_expr)]
+        if true || !token.escaped() {
             self.serialize_ident_token(token, token_type, name);
         } else {
             #[cold]
