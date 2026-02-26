@@ -270,6 +270,7 @@ impl<'b, S: SequenceSerializer> EstreeTokenContext<'b, S> {
             self.serialize_ident_token(token, token_type, name);
         } else {
             #[cold]
+            #[inline(never)]
             fn emit<S: SequenceSerializer>(
                 ctx: &mut EstreeTokenContext<'_, S>,
                 token: &Token,
@@ -456,6 +457,7 @@ impl<'a, S: SequenceSerializer> Visit<'a> for EstreeTokenContext<'_, S> {
             self.serialize_ident_token(token, "PrivateIdentifier", &identifier.name);
         } else {
             #[cold]
+            #[inline(never)]
             fn emit<S: SequenceSerializer>(ctx: &mut EstreeTokenContext<'_, S>, token: &Token) {
                 // Strip leading `#`
                 let value = &ctx.source_text[token.start() as usize + 1..token.end() as usize];
