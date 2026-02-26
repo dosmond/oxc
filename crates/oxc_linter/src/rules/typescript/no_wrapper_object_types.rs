@@ -18,9 +18,12 @@ fn no_wrapper_object_types(ident_name: &str, span: Span) -> OxcDiagnostic {
         .with_label(span)
 }
 
-fn no_wrapper_object_types_non_fixable(span: Span) -> OxcDiagnostic {
+fn no_wrapper_object_types_non_fixable(ident_name: &str, span: Span) -> OxcDiagnostic {
     OxcDiagnostic::warn("Do not use wrapper object types.")
-        .with_help("Define an explicit interface instead of using a wrapper object type in heritage clauses.")
+        .with_help(format!(
+            "`{ident_name}` is a boxed object type, not a primitive. Boxed types have object semantics (identity/truthiness) that can be surprising. Use `{}` for values, and in `extends`/`implements` use an interface/object shape instead.",
+            ident_name.cow_to_ascii_lowercase()
+        ))
         .with_label(span)
 }
 
@@ -105,7 +108,7 @@ impl Rule for NoWrapperObjectTypes {
                     fixer.replace(ident_span, ident_name.cow_to_ascii_lowercase().to_string())
                 });
             } else {
-                ctx.diagnostic(no_wrapper_object_types_non_fixable(ident_span));
+                ctx.diagnostic(no_wrapper_object_types_non_fixable(ident_name, ident_span));
             }
         }
     }
