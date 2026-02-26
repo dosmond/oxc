@@ -91,12 +91,14 @@ source: crates/oxc_linter/src/tester.rs
  1 │ class MyClass implements Number {}
    ·                          ──────
    ╰────
+  help: Define an explicit interface instead of using a wrapper object type in heritage clauses.
 
   ⚠ typescript-eslint(no-wrapper-object-types): Do not use wrapper object types.
    ╭─[no_wrapper_object_types.tsx:1:31]
  1 │ interface MyInterface extends Number {}
    ·                               ──────
    ╰────
+  help: Define an explicit interface instead of using a wrapper object type in heritage clauses.
 
   ⚠ typescript-eslint(no-wrapper-object-types): Do not use wrapper object types.
    ╭─[no_wrapper_object_types.tsx:1:15]
