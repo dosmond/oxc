@@ -194,10 +194,10 @@ const source = `{}`;{}
             if let Some(ref instance_type) = section.instance_type
                 && !instance_type.is_empty()
             {
-                parts.push_str(&format!("\ntype: `{instance_type}`\n"));
+                write!(parts, "\ntype: `{instance_type}`\n").unwrap();
             }
             if let Some(ref default) = section.default {
-                parts.push_str(&format!("\ndefault: `{default}`\n"));
+                write!(parts, "\ndefault: `{default}`\n").unwrap();
             }
             if parts.trim().is_empty() {
                 return rendered;
