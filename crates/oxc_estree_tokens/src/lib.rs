@@ -253,6 +253,7 @@ impl<'b, S: SequenceSerializer> EstreeTokenContext<'b, S> {
     /// When the token has escapes and `decode_identifier_escapes` is enabled, `name` provides
     /// the decoded value. Only when escapes are present but decoding is disabled do we need to
     /// fall back to slicing the raw source text (preserving the escape sequences in the output).
+    #[inline]
     fn emit_identifier(&mut self, start: u32, name: &str) {
         let token = self.advance_to(start);
         let token_type = if self.options.exclude_legacy_keyword_identifiers
